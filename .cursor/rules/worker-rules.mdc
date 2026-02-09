@@ -1,0 +1,30 @@
+---
+description: Worker 组件架构约束，编辑 Worker 相关代码时自动加载
+globs: "src/worker/**"
+alwaysApply: false
+---
+
+# Worker 规则
+
+## 组件职责
+
+- `BlockStore` — Block 数据存储，管理多级 StorageTier（MEM/SSD/HDD），使用 RocksDB 持久化元数据
+- `PageStore` — Page 级缓存（1MB 粒度），优化随机小 IO
+- `CacheManager` — 淘汰策略（LRU/LFU），管理缓存空间
+- `WorkerServiceImpl` — gRPC 服务端，将 RPC 请求桥接到 BlockStore/PageStore
+- `MasterClient` — Worker 到 Master 的 gRPC 客户端（注册、心跳、上报 block 位置）
+- `WorkerServer` — 进程入口，启动 gRPC Server、注册到 Master、维护心跳线程
+
+## 架构约束
+
+- Block 的读写**必须通过 `BlockStore`**，禁止直接操作 StorageTier
+- Page 的读写**必须通过 `PageStore`**
+- `WorkerServiceImpl` 是薄层：只做 Proto 转换 + 调用 BlockStore/PageStore，不含业务逻辑
+- Worker 启动后必须向 Master 注册，并维持周期性心跳
+- `MasterClient` 的 RPC 调用必须有 deadline（通过 `RpcConfig.internal_rpc_timeout_ms` 配置）
+
+## 生命周期
+
+- `WorkerServer::Start()` 的顺序：启动 gRPC Server → 注册到 Master → 启动心跳线程
+- `WorkerServer::Stop()` 的顺序：停止心跳线程 → 关闭 gRPC Server
+- Block 索引在启动时通过 `BlockStore::Recover()` 从 RocksDB 恢复

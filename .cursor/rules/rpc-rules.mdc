@@ -1,0 +1,34 @@
+---
+description: gRPC 通信相关的架构约束，编辑 RPC 客户端/服务端/Proto 文件时自动加载
+globs: "src/client/**,src/worker/master_client.*,src/worker/worker_service_impl.*,src/master/master_service_impl.*,proto/**,src/common/proto_utils.*"
+alwaysApply: false
+---
+
+# RPC 规则
+
+## Deadline
+
+- 所有 RPC 调用**必须设置 deadline**，禁止无超时的阻塞调用
+- 超时值从 `RpcConfig` 获取，通过构造函数注入到各 Client 类
+- 三条链路的默认超时：Client→Master 10s，Client→Worker 30s，Worker→Master 10s
+- `timeout = 0` 表示不设 deadline，仅限测试使用
+
+## 连接管理
+
+- Client 到 Worker 的连接**必须通过 `ChannelPool` 获取**，禁止在业务代码中直接调用 `grpc::CreateChannel`
+- `ChannelPool` 按 worker 地址缓存 Channel，自动处理 `SHUTDOWN` 状态的 Channel 驱逐与重建
+- `BlockClient` 优先使用 `BlockClient(shared_ptr<Channel>)` 构造，不要用地址构造
+
+## 类型转换
+
+- 内部类型（`Status`, `Inode`, `TierType`, `BlockLocationInfo`）与 Proto 类型之间的转换**必须通过 `proto_utils.h`**
+- 禁止在 ServiceImpl 或 Client 中手动逐字段赋值做类型转换
+- 新增类型映射时，在 `proto_utils.h` 中添加对应的 `ToProto*` / `FromProto*` 函数
+
+## 新增 RPC 方法
+
+新增一个 RPC 方法需要同时修改以下文件：
+1. `proto/*.proto` — 定义 Request/Response message 和 service method
+2. `src/master/master_service_impl.cpp` 或 `src/worker/worker_service_impl.cpp` — 服务端实现
+3. `src/client/file_system_client.*` 或 `src/client/block_client.*` — 客户端封装
+4. `src/common/proto_utils.h` — 如涉及新类型，添加转换函数

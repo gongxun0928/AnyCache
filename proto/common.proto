@@ -1,0 +1,71 @@
+syntax = "proto3";
+package anycache.proto;
+
+option cc_generic_services = false;
+
+// ─── Basic types ─────────────────────────────────────────────
+
+enum StatusCode {
+    OK = 0;
+    NOT_FOUND = 1;
+    ALREADY_EXISTS = 2;
+    INVALID_ARGUMENT = 3;
+    IO_ERROR = 4;
+    PERMISSION_DENIED = 5;
+    NOT_IMPLEMENTED = 6;
+    RESOURCE_EXHAUSTED = 7;
+    UNAVAILABLE = 8;
+    INTERNAL = 9;
+}
+
+message RpcStatus {
+    StatusCode code = 1;
+    string message = 2;
+}
+
+enum TierType {
+    MEMORY = 0;
+    SSD = 1;
+    HDD = 2;
+}
+
+enum WritePolicy {
+    MUST_CACHE = 0;
+    CACHE_THROUGH = 1;
+    THROUGH = 2;
+    ASYNC_THROUGH = 3;
+}
+
+// ─── File system types ───────────────────────────────────────
+
+message FileInfo {
+    uint64 inode_id = 1;
+    string name = 2;
+    string path = 3;
+    bool is_directory = 4;
+    uint64 size = 5;
+    uint32 mode = 6;
+    string owner = 7;
+    string group = 8;
+    int64 creation_time_ms = 9;
+    int64 modification_time_ms = 10;
+    repeated uint64 block_ids = 11;
+    uint64 parent_id = 12;
+    uint64 block_size = 13;     // Per-file block size in bytes
+    bool is_complete = 14;      // Whether file writing is complete
+}
+
+message BlockLocation {
+    uint64 block_id = 1;
+    uint64 worker_id = 2;
+    string worker_address = 3;
+    TierType tier = 4;
+}
+
+message WorkerInfo {
+    uint64 worker_id = 1;
+    string address = 2;
+    int64 last_heartbeat_ms = 3;
+    uint64 capacity_bytes = 4;
+    uint64 used_bytes = 5;
+}

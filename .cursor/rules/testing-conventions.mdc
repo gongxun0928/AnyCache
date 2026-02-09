@@ -1,0 +1,43 @@
+---
+description: 单元测试编写规范
+globs: "tests/**/*.cpp"
+alwaysApply: false
+---
+
+# 测试规范
+
+## 框架
+
+- 使用 Google Test (`gtest`)，链接 `GTest::gtest_main`
+
+## 命名
+
+- 测试文件：`<module>_test.cpp`，放在 `tests/<module>/` 目录下
+- 测试用例：`TEST(ClassNameTest, BehaviorDescription)`
+
+```cpp
+TEST(StatusTest, OkStatus) {
+    Status s = Status::OK();
+    EXPECT_TRUE(s.ok());
+}
+
+TEST(CacheManagerTest, LRU_EvictionOrder) { ... }
+```
+
+## 结构
+
+- 测试目录结构镜像 `src/` 目录
+- 每个测试文件对应一个源文件模块
+- 使用临时目录进行文件系统测试，测试结束后清理
+
+## CMake 集成
+
+- 每个模块一个测试可执行文件：`add_executable(<module>_test ...)`
+- 链接对应库和 `GTest::gtest_main`
+- 注册测试：`add_test(NAME <module>_test COMMAND <module>_test)`
+
+## 断言
+
+- 非致命断言用 `EXPECT_*`
+- 致命断言用 `ASSERT_*`（如后续逻辑依赖此结果）
+- 验证 Status：`EXPECT_TRUE(s.ok())` 或 `ASSERT_TRUE(s.ok())`

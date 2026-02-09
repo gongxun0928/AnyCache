@@ -1,0 +1,43 @@
+---
+description: CMake 构建系统规范
+globs: "**/CMakeLists.txt"
+alwaysApply: false
+---
+
+# CMake 规范
+
+## 库组织
+
+- 每个模块一个静态库：`anycache_common`, `anycache_ufs`, `anycache_worker`, `anycache_master`, `anycache_client`
+- 库之间通过 `target_link_libraries` 声明依赖
+- 依赖传播用 `PUBLIC`/`PRIVATE` 正确区分
+
+## 可选功能
+
+- 用 `option()` 定义开关：`ANYCACHE_ENABLE_FUSE`, `ANYCACHE_ENABLE_S3`
+- 运行时检测结果存入 `ANYCACHE_HAS_XXX` 变量
+- 通过 `target_compile_definitions` 传递宏给源码
+
+## 外部依赖
+
+- 优先 `find_package(xxx QUIET)`
+- 找不到时 fallback 到 `FetchContent`
+- 示例模式：
+
+```cmake
+find_package(spdlog QUIET)
+if(NOT spdlog_FOUND)
+    include(FetchContent)
+    FetchContent_Declare(spdlog
+        GIT_REPOSITORY https://github.com/gabime/spdlog.git
+        GIT_TAG v1.13.0)
+    FetchContent_MakeAvailable(spdlog)
+endif()
+```
+
+## 新增模块清单
+
+添加新源文件时需要：
+1. 在对应库的 `add_library` 中添加源文件
+2. 如有新测试文件，在 Tests 段添加并链接
+3. 如有新依赖，按 find_package + FetchContent 模式引入

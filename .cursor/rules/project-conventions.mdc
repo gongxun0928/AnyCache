@@ -1,0 +1,51 @@
+---
+description: AnyCache 项目通用编码规范，所有开发必须遵循
+alwaysApply: true
+---
+
+# AnyCache 项目规范
+
+## 语言与构建
+
+- C++20 标准，CMake 3.20+ 构建
+- gRPC + Protobuf 为必选依赖（`find_package(CONFIG REQUIRED)`）
+- 可选依赖通过 `ANYCACHE_HAS_XXX` 宏控制条件编译（如 `ANYCACHE_HAS_FUSE`、`ANYCACHE_HAS_S3`）
+- 外部依赖优先 `find_package`，找不到时用 `FetchContent` 自动下载
+
+## 命名规范
+
+| 类别 | 风格 | 示例 |
+|------|------|------|
+| 类/结构体 | PascalCase | `BlockMaster`, `StorageTier`, `UfsFileInfo` |
+| 函数/方法 | PascalCase | `GetBlockLocations()`, `CreateFile()` |
+| 变量 | snake_case | `block_id`, `worker_id` |
+| 成员变量 | snake_case + 下划线后缀 | `mu_`, `config_`, `running_` |
+| 常量 | k + PascalCase | `kDefaultBlockSize`, `kInvalidInodeId` |
+| 枚举值 | k + PascalCase | `kOk`, `kNotFound`, `kMemory` |
+| 类型别名 | PascalCase | `using BlockId = uint64_t` |
+| 文件名 | snake_case | `block_master.h`, `local_ufs.cpp` |
+| 命名空间 | snake_case | `namespace anycache` |
+
+## 项目结构
+
+```
+src/common/    # 公共: Status, Config, Logging, Metrics, Types, ProtoUtils
+src/master/    # Master: InodeTree, BlockMaster, FileSystemMaster, Journal,
+               #         MasterServer, MasterServiceImpl, WorkerManager
+src/worker/    # Worker: StorageTier, BlockStore, PageStore, CacheManager,
+               #         WorkerServer, WorkerServiceImpl, MasterClient
+src/client/    # Client: FileSystemClient, BlockClient, CacheClient, ChannelPool
+src/fuse/      # FUSE 挂载层
+src/ufs/       # 底层文件系统适配: LocalUFS, S3UFS, Factory
+tests/         # 单元测试，目录结构镜像 src/
+benchmark/     # 性能测试
+proto/         # gRPC Protobuf 定义 (master.proto, worker.proto, common.proto)
+tools/         # 可执行入口: master, worker, cli
+config/        # 配置示例
+```
+
+## 命名空间
+
+- 所有代码在 `namespace anycache { ... }` 内
+- 内部辅助函数放匿名命名空间 `namespace { ... }`
+- 禁止 `using namespace std`

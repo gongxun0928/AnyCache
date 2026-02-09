@@ -1,0 +1,93 @@
+---
+description: C++ 源文件编码风格与模式
+globs: "**/*.{h,cpp}"
+alwaysApply: false
+---
+
+# C++ 编码风格
+
+## 头文件
+
+- 使用 `#pragma once`，不使用传统 include guard
+- include 顺序：标准库 → 第三方库 → 项目头文件
+- 项目内 include 使用引号和相对路径：`#include "common/status.h"`
+
+## 错误处理
+
+- 使用自定义 `Status` 类，**不使用异常**
+- 工厂方法创建状态：`Status::OK()`, `Status::NotFound(msg)`, `Status::IOError(msg)`
+- 使用 `RETURN_IF_ERROR(expr)` 宏简化错误传播：
+
+```cpp
+// 正确
+RETURN_IF_ERROR(DoSomething());
+// 等价于
+auto _s = DoSomething();
+if (!_s.ok()) return _s;
+```
+
+## 枚举
+
+- 始终使用 `enum class`，带底层类型：`enum class StatusCode : uint8_t { kOk = 0, ... }`
+
+## 智能指针与所有权
+
+- 独占所有权用 `std::unique_ptr`
+- 共享所有权用 `std::shared_ptr`
+- 工厂方法返回 `std::unique_ptr<Base>`
+- 禁止裸 `new/delete`
+
+## 接口/抽象类
+
+- 虚析构函数：`virtual ~ClassName() = default`
+- 纯虚函数定义接口：`virtual Status Open(...) = 0`
+- 派生类必须标注 `override`
+
+```cpp
+class UnderFileSystem {
+public:
+    virtual ~UnderFileSystem() = default;
+    virtual std::string Scheme() const = 0;
+    virtual Status Open(...) = 0;
+};
+
+class LocalUnderFileSystem : public UnderFileSystem {
+public:
+    std::string Scheme() const override { return "file"; }
+    Status Open(...) override;
+};
+```
+
+## 并发
+
+- 互斥锁成员声明为 `mutable std::mutex mu_` 或 `mutable std::shared_mutex mu_`
+- 加锁用 `std::lock_guard<std::mutex> lock(mu_)`
+- 原子变量用花括号初始化：`std::atomic<bool> running_{false}`
+- ID 生成器用 `std::atomic<uint64_t>`
+
+## 类结构
+
+- public 在前，private 在后
+- 简单 getter 内联：`bool IsRunning() const { return running_; }`
+- 成员变量全部放 private
+
+## 注释风格
+
+- **所有注释必须使用英文**
+- 段落分隔用 Unicode box-drawing：`// ─── Section Name ─────────────────`
+- 类/函数上方写简要说明（非 Doxygen）
+- 不使用 `///` 或 `/** */`
+
+```cpp
+// ❌ 错误：中文注释
+// 这是一个块存储管理器
+
+// ✅ 正确：英文注释
+// BlockStore manages block allocation and deallocation
+```
+
+## 常用工具
+
+- 日志：`LOG_INFO("msg {}", arg)`, `LOG_ERROR(...)` 等（spdlog 宏封装）
+- 文件系统：`namespace fs = std::filesystem`
+- 配置：YAML 格式，`Config::LoadFromFile()` 加载

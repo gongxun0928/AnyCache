@@ -1,0 +1,57 @@
+---
+description: 文档编写语言规范
+globs: "**/*.md"
+alwaysApply: false
+---
+
+# 文档语言规范
+
+## 设计文档与使用文档
+
+- **设计文档**（`design/` 目录）使用**中文**编写
+- **使用文档**（`docs/` 目录、`README.md`）使用**中文**编写
+- 便于团队快速理解和协作
+
+## 代码注释
+
+- **所有代码注释**（`.h`、`.cpp` 文件中）必须使用**英文**
+- 保持与国际开源项目规范一致
+
+## 示例
+
+### 设计文档（中文）
+
+```markdown
+# 缓存淘汰策略设计
+
+## 目标
+实现 LRU 和 LFU 两种缓存淘汰策略...
+
+## 实现方案
+1. 定义 CachePolicy 抽象接口
+2. 实现 LRUPolicy 和 LFUPolicy
+...
+```
+
+### 使用文档（中文）
+
+```markdown
+# AnyCache 使用指南
+
+## 快速开始
+
+启动 Master 节点：
+\`\`\`bash
+./anycache-master config.yaml
+\`\`\`
+```
+
+### 代码注释（英文）
+
+```cpp
+// CacheManager coordinates between storage tiers and eviction policies.
+class CacheManager {
+    // Evict blocks according to the configured policy
+    Status EvictBlocks(size_t target_size);
+};
+```

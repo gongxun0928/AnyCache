@@ -1,0 +1,179 @@
+syntax = "proto3";
+package anycache.proto;
+
+import "common.proto";
+
+option cc_generic_services = false;
+
+// ─── Master Service: Client/Worker -> Master ─────────────────
+
+service MasterService {
+    // File system operations
+    rpc GetFileInfo(GetFileInfoRequest) returns (GetFileInfoResponse);
+    rpc CreateFile(CreateFileRequest) returns (CreateFileResponse);
+    rpc CompleteFile(CompleteFileRequest) returns (CompleteFileResponse);
+    rpc DeleteFile(DeleteFileRequest) returns (DeleteFileResponse);
+    rpc RenameFile(RenameFileRequest) returns (RenameFileResponse);
+    rpc ListStatus(ListStatusRequest) returns (ListStatusResponse);
+    rpc Mkdir(MkdirRequest) returns (MkdirResponse);
+    rpc TruncateFile(TruncateFileRequest) returns (TruncateFileResponse);
+
+    // Block operations
+    rpc GetBlockLocations(GetBlockLocationsRequest) returns (GetBlockLocationsResponse);
+    rpc ReportBlockLocation(ReportBlockLocationRequest) returns (ReportBlockLocationResponse);
+
+    // Worker management
+    rpc RegisterWorker(RegisterWorkerRequest) returns (RegisterWorkerResponse);
+    rpc WorkerHeartbeat(WorkerHeartbeatRequest) returns (WorkerHeartbeatResponse);
+
+    // Mount operations
+    rpc Mount(MountRequest) returns (MountResponse);
+    rpc Unmount(UnmountRequest) returns (UnmountResponse);
+    rpc GetMountTable(GetMountTableRequest) returns (GetMountTableResponse);
+}
+
+// ─── File operations ─────────────────────────────────────────
+
+message GetFileInfoRequest {
+    string path = 1;
+}
+message GetFileInfoResponse {
+    RpcStatus status = 1;
+    FileInfo file_info = 2;
+}
+
+message CreateFileRequest {
+    string path = 1;
+    uint64 block_size = 2;
+    WritePolicy write_policy = 3;
+    uint32 mode = 4;
+    bool recursive = 5;
+}
+message CreateFileResponse {
+    RpcStatus status = 1;
+    uint64 file_id = 2;
+    uint64 worker_id = 3;  // Assigned worker for writing
+    string worker_address = 4;  // Worker address for client to write blocks
+}
+
+message CompleteFileRequest {
+    uint64 file_id = 1;
+    repeated uint64 block_ids = 2;
+    uint64 file_size = 3;
+}
+message CompleteFileResponse {
+    RpcStatus status = 1;
+}
+
+message DeleteFileRequest {
+    string path = 1;
+    bool recursive = 2;
+}
+message DeleteFileResponse {
+    RpcStatus status = 1;
+}
+
+message RenameFileRequest {
+    string src_path = 1;
+    string dst_path = 2;
+}
+message RenameFileResponse {
+    RpcStatus status = 1;
+}
+
+message ListStatusRequest {
+    string path = 1;
+}
+message ListStatusResponse {
+    RpcStatus status = 1;
+    repeated FileInfo entries = 2;
+}
+
+message MkdirRequest {
+    string path = 1;
+    bool recursive = 2;
+    uint32 mode = 3;
+}
+message MkdirResponse {
+    RpcStatus status = 1;
+}
+
+message TruncateFileRequest {
+    string path = 1;
+    uint64 new_size = 2;
+}
+message TruncateFileResponse {
+    RpcStatus status = 1;
+}
+
+// ─── Block operations ────────────────────────────────────────
+
+message GetBlockLocationsRequest {
+    repeated uint64 block_ids = 1;
+}
+message GetBlockLocationsResponse {
+    RpcStatus status = 1;
+    repeated BlockLocation locations = 2;
+}
+
+message ReportBlockLocationRequest {
+    uint64 worker_id = 1;
+    repeated BlockLocation blocks = 2;
+}
+message ReportBlockLocationResponse {
+    RpcStatus status = 1;
+}
+
+// ─── Worker management ───────────────────────────────────────
+
+message RegisterWorkerRequest {
+    string address = 1;
+    uint64 capacity_bytes = 2;
+    uint64 used_bytes = 3;
+    repeated TierInfo tiers = 4;
+
+    message TierInfo {
+        TierType type = 1;
+        uint64 capacity_bytes = 2;
+        uint64 used_bytes = 3;
+    }
+}
+message RegisterWorkerResponse {
+    RpcStatus status = 1;
+    uint64 worker_id = 2;
+}
+
+message WorkerHeartbeatRequest {
+    uint64 worker_id = 1;
+    uint64 capacity_bytes = 2;
+    uint64 used_bytes = 3;
+    repeated uint64 added_blocks = 4;
+    repeated uint64 removed_blocks = 5;
+}
+message WorkerHeartbeatResponse {
+    RpcStatus status = 1;
+    repeated uint64 blocks_to_remove = 2;
+}
+
+// ─── Mount operations ────────────────────────────────────────
+
+message MountRequest {
+    string anycache_path = 1;  // Path in anycache namespace
+    string ufs_uri = 2;       // e.g., "s3://bucket/prefix" or "file:///path"
+}
+message MountResponse {
+    RpcStatus status = 1;
+}
+
+message UnmountRequest {
+    string anycache_path = 1;
+}
+message UnmountResponse {
+    RpcStatus status = 1;
+}
+
+message GetMountTableRequest {}
+message GetMountTableResponse {
+    RpcStatus status = 1;
+    map<string, string> mounts = 2;  // anycache_path -> ufs_uri
+}

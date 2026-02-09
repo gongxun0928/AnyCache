@@ -1,0 +1,129 @@
+syntax = "proto3";
+package anycache.proto;
+
+import "common.proto";
+
+option cc_generic_services = false;
+
+// ─── Journal entries for Master HA (Raft log) ────────────────
+
+enum JournalEntryType {
+    JOURNAL_UNKNOWN = 0;
+    CREATE_FILE = 1;
+    DELETE_FILE = 2;
+    RENAME_FILE = 3;
+    COMPLETE_FILE = 4;
+    CREATE_DIRECTORY = 5;
+    SET_ATTRIBUTE = 6;
+    ADD_BLOCK = 7;
+    REMOVE_BLOCK = 8;
+    MOUNT = 9;
+    UNMOUNT = 10;
+}
+
+message JournalEntry {
+    uint64 sequence_number = 1;
+    int64 timestamp_ms = 2;
+    JournalEntryType type = 3;
+
+    oneof entry {
+        CreateFileEntry create_file = 10;
+        DeleteFileEntry delete_file = 11;
+        RenameFileEntry rename_file = 12;
+        CompleteFileEntry complete_file = 13;
+        CreateDirectoryEntry create_directory = 14;
+        AddBlockEntry add_block = 15;
+        RemoveBlockEntry remove_block = 16;
+        MountEntry mount = 17;
+        UnmountEntry unmount = 18;
+    }
+}
+
+message CreateFileEntry {
+    uint64 inode_id = 1;
+    uint64 parent_id = 2;
+    string name = 3;
+    uint32 mode = 4;
+}
+
+message DeleteFileEntry {
+    uint64 inode_id = 1;
+    bool recursive = 2;
+}
+
+message RenameFileEntry {
+    uint64 src_inode_id = 1;
+    uint64 dst_parent_id = 2;
+    string dst_name = 3;
+}
+
+message CompleteFileEntry {
+    uint64 inode_id = 1;
+    uint64 file_size = 2;
+    repeated uint64 block_ids = 3;
+}
+
+message CreateDirectoryEntry {
+    uint64 inode_id = 1;
+    uint64 parent_id = 2;
+    string name = 3;
+    uint32 mode = 4;
+}
+
+message AddBlockEntry {
+    uint64 block_id = 1;
+    uint64 worker_id = 2;
+}
+
+message RemoveBlockEntry {
+    uint64 block_id = 1;
+}
+
+message MountEntry {
+    string anycache_path = 1;
+    string ufs_uri = 2;
+}
+
+message UnmountEntry {
+    string anycache_path = 1;
+}
+
+// ─── Raft service (Master -> Master) ─────────────────────────
+
+service JournalService {
+    rpc AppendEntries(AppendEntriesRequest) returns (AppendEntriesResponse);
+    rpc RequestVote(RequestVoteRequest) returns (RequestVoteResponse);
+    rpc GetJournalSnapshot(GetJournalSnapshotRequest) returns (GetJournalSnapshotResponse);
+}
+
+message AppendEntriesRequest {
+    uint64 term = 1;
+    uint64 leader_id = 2;
+    uint64 prev_log_index = 3;
+    uint64 prev_log_term = 4;
+    repeated JournalEntry entries = 5;
+    uint64 leader_commit = 6;
+}
+message AppendEntriesResponse {
+    uint64 term = 1;
+    bool success = 2;
+}
+
+message RequestVoteRequest {
+    uint64 term = 1;
+    uint64 candidate_id = 2;
+    uint64 last_log_index = 3;
+    uint64 last_log_term = 4;
+}
+message RequestVoteResponse {
+    uint64 term = 1;
+    bool vote_granted = 2;
+}
+
+message GetJournalSnapshotRequest {
+    uint64 from_sequence = 1;
+}
+message GetJournalSnapshotResponse {
+    RpcStatus status = 1;
+    repeated JournalEntry entries = 2;
+}

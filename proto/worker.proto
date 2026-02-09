@@ -1,0 +1,115 @@
+syntax = "proto3";
+package anycache.proto;
+
+import "common.proto";
+
+option cc_generic_services = false;
+
+// ─── Worker Service: Client -> Worker ────────────────────────
+
+service WorkerService {
+    // Block-level I/O
+    rpc ReadBlock(ReadBlockRequest) returns (ReadBlockResponse);
+    rpc WriteBlock(WriteBlockRequest) returns (WriteBlockResponse);
+    rpc CacheBlock(CacheBlockRequest) returns (CacheBlockResponse);
+    rpc RemoveBlock(RemoveBlockRequest) returns (RemoveBlockResponse);
+
+    // Page-level I/O (optimised for small random reads)
+    rpc ReadPage(ReadPageRequest) returns (ReadPageResponse);
+
+    // Async operations
+    rpc AsyncCacheBlock(AsyncCacheBlockRequest) returns (AsyncCacheBlockResponse);
+    rpc PersistBlock(PersistBlockRequest) returns (PersistBlockResponse);
+
+    // Status
+    rpc GetWorkerStatus(GetWorkerStatusRequest) returns (GetWorkerStatusResponse);
+}
+
+// ─── Block I/O ───────────────────────────────────────────────
+
+message ReadBlockRequest {
+    uint64 block_id = 1;
+    uint64 offset = 2;
+    uint64 length = 3;
+}
+message ReadBlockResponse {
+    RpcStatus status = 1;
+    bytes data = 2;
+}
+
+message WriteBlockRequest {
+    uint64 block_id = 1;
+    uint64 offset = 2;
+    bytes data = 3;
+    uint64 file_id = 4;  // For new block allocation
+}
+message WriteBlockResponse {
+    RpcStatus status = 1;
+    uint64 block_id = 2;
+}
+
+message CacheBlockRequest {
+    uint64 block_id = 1;
+    string ufs_path = 2;
+    uint64 offset_in_ufs = 3;
+    uint64 length = 4;
+}
+message CacheBlockResponse {
+    RpcStatus status = 1;
+}
+
+message RemoveBlockRequest {
+    uint64 block_id = 1;
+}
+message RemoveBlockResponse {
+    RpcStatus status = 1;
+}
+
+// ─── Page I/O ────────────────────────────────────────────────
+
+message ReadPageRequest {
+    uint64 file_id = 1;
+    uint64 page_index = 2;
+}
+message ReadPageResponse {
+    RpcStatus status = 1;
+    bytes data = 2;
+}
+
+// ─── Async operations ────────────────────────────────────────
+
+message AsyncCacheBlockRequest {
+    uint64 block_id = 1;
+    string ufs_path = 2;
+    uint64 offset_in_ufs = 3;
+    uint64 length = 4;
+}
+message AsyncCacheBlockResponse {
+    RpcStatus status = 1;
+}
+
+message PersistBlockRequest {
+    uint64 block_id = 1;
+    string ufs_path = 2;
+    uint64 offset_in_ufs = 3;
+}
+message PersistBlockResponse {
+    RpcStatus status = 1;
+}
+
+// ─── Status ──────────────────────────────────────────────────
+
+message GetWorkerStatusRequest {}
+message GetWorkerStatusResponse {
+    RpcStatus status = 1;
+    uint64 capacity_bytes = 2;
+    uint64 used_bytes = 3;
+    uint64 block_count = 4;
+    repeated TierStatus tiers = 5;
+
+    message TierStatus {
+        TierType type = 1;
+        uint64 capacity_bytes = 2;
+        uint64 used_bytes = 3;
+    }
+}

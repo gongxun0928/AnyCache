@@ -1,0 +1,30 @@
+---
+description: FUSE 挂载层架构约束，编辑 FUSE 相关代码时自动加载
+globs: "src/fuse/**"
+alwaysApply: false
+---
+
+# FUSE 规则
+
+## 组件职责
+
+- `FuseContext` — 全局上下文，持有 `FileSystemClient`（通过 gRPC 与 Master 通信）
+- `fuse_operations` — FUSE 回调实现（Getattr, Read, Write, Readdir 等）
+- `InitFuseContext(cfg)` — 初始化 FuseContext，从 `Config` 读取 Master 地址和 RPC 超时
+
+## 架构约束
+
+- FUSE 操作**必须通过 `FileSystemClient` 访问 Master**，禁止直接依赖 Master 或 Worker 的内部类
+- 所有 FUSE 回调的返回值必须是 `0`（成功）或 `-errno`（失败），确保 `Status` 到 `errno` 的正确转换
+- FUSE 层不包含缓存逻辑或数据处理逻辑，仅做系统调用适配
+
+## 错误码映射
+
+常见的 `Status` 到 `errno` 映射：
+- `Status::OK()` → `0`
+- `Status::NotFound()` → `-ENOENT`
+- `Status::AlreadyExists()` → `-EEXIST`
+- `Status::InvalidArgument()` → `-EINVAL`
+- `Status::Unavailable()` → `-EIO`
+
+新增 Status 类型时需确认 FUSE 层的错误映射已覆盖。

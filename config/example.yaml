@@ -1,0 +1,43 @@
+master:
+  host: "0.0.0.0"
+  port: 19999
+  journal_dir: "/var/lib/anycache/journal"
+  heartbeat_timeout_ms: 30000
+  meta_db_dir: "/var/lib/anycache/master/meta"
+  metrics_port: 9201  # Prometheus /metrics HTTP 端口; 0 = 禁用
+
+worker:
+  host: "0.0.0.0"
+  port: 29999
+  master_address: "localhost:19999"  # Master 地址，Worker 注册/心跳用
+  page_size: 1048576    # 1 MB
+  block_size: 67108864  # 64 MB
+  metrics_port: 9202  # Prometheus /metrics HTTP 端口; 0 = 禁用
+  tiers:
+    - type: "MEM"
+      path: "/dev/shm/anycache"
+      capacity_bytes: 4294967296  # 4 GB
+    - type: "SSD"
+      path: "/mnt/ssd/anycache"
+      capacity_bytes: 107374182400  # 100 GB
+    - type: "HDD"
+      path: "/mnt/hdd/anycache"
+      capacity_bytes: 1099511627776  # 1 TB
+
+fuse:
+  mount_point: "/mnt/anycache"
+  master_address: "localhost:19999"
+  direct_io: false
+
+rpc:
+  master_rpc_timeout_ms: 10000    # Client → Master 超时 (元数据操作)
+  worker_rpc_timeout_ms: 30000    # Client → Worker 超时 (块读写)
+  internal_rpc_timeout_ms: 10000  # Worker → Master 超时 (注册/心跳)
+
+s3:
+  endpoint: "https://s3.amazonaws.com"
+  bucket: "my-data-bucket"
+  region: "us-east-1"
+  # access_key and secret_key should be set via environment variables
+  # AWS_ACCESS_KEY_ID / AWS_SECRET_ACCESS_KEY
+  use_path_style: false

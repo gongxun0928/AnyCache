@@ -1,0 +1,28 @@
+---
+description: Master 组件架构约束，编辑 Master 相关代码时自动加载
+globs: "src/master/**"
+alwaysApply: false
+---
+
+# Master 规则
+
+## 组件职责
+
+- `FileSystemMaster` — 文件元数据管理（InodeTree），处理文件 CRUD
+- `BlockMaster` — Block 分配与定位，维护 block → worker 的映射
+- `WorkerManager` — Worker 生命周期管理（注册、心跳、下线检测）
+- `MasterServiceImpl` — gRPC 服务端，将 RPC 请求桥接到上述组件
+- `MasterServer` — 进程入口，启动 gRPC Server 和各子组件
+
+## 架构约束
+
+- Worker 的注册、心跳、下线**必须通过 `WorkerManager`**，禁止在其他模块直接操作 worker 列表
+- Block 的分配和定位**必须通过 `BlockMaster`**，禁止在 ServiceImpl 中直接决定 block 归属
+- `MasterServiceImpl` 是一个薄层：只做 Proto ↔ 内部类型转换 + 调用内部组件方法，不包含业务逻辑
+- `MountTable` 管理 UFS 挂载点映射，路径解析必须经过 MountTable
+
+## 并发
+
+- `InodeTree` 的写操作必须持有写锁，读操作持有读锁
+- `WorkerManager` 的 worker 列表访问需加锁（内部已封装）
+- `MasterServiceImpl` 的方法可能被多个 gRPC 线程并发调用，确保调用的内部方法是线程安全的
